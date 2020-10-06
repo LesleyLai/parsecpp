@@ -2,9 +2,11 @@ set(TEST_TARGET_NAME ${PROJECT_NAME}_test)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-add_executable(${TEST_TARGET_NAME} "main.cpp")
+add_executable(${TEST_TARGET_NAME}
+        main.cpp
+        parsec.cpp)
 
-target_link_libraries(${TEST_TARGET_NAME} PRIVATE common compiler_options
+target_link_libraries(${TEST_TARGET_NAME} PRIVATE parsecpp compiler_options
     CONAN_PKG::Catch2)
 
 CMAKE_DEPENDENT_OPTION(BP_BUILD_TESTS_COVERAGE
