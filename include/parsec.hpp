@@ -108,10 +108,7 @@ struct IntParser {
 /**
  * @brief Creates a parser that parses an integer
  */
-[[nodiscard]] constexpr auto integer() noexcept
-{
-  return IntParser{};
-}
+inline constexpr auto integer = IntParser{};
 
 template <class Func, class Parser> struct MappedParser {
   Func func;
@@ -159,16 +156,30 @@ requires(std::same_as<ParseType<Parser1>, ParseType<Parser2>>) struct OrParser {
 };
 
 /**
- * @brief Creates a parser that will try the first parser p1, if it fails, it
- * will then try the second parser p2
+ * @brief Creates a parser that tries the first parser, and if it fails, does
+ * the second
+ *
+ * @note p1 and p2 must have the same return types.
  */
 template <class Parser1, class Parser2>
 requires(std::same_as<ParseType<Parser1>, ParseType<Parser2>>)
     [[nodiscard]] constexpr auto
-    operator|(Parser1&& p1, Parser2&& p2) noexcept
+    operator|(Parser1&& p1, Parser2&& p2) noexcept -> OrParser<Parser1, Parser2>
 {
   return OrParser<Parser1, Parser2>{.p1 = std::forward<Parser1>(p1),
                                     .p2 = std::forward<Parser2>(p2)};
+}
+
+/**
+ * @brief Creates a parser that pick `one_of` the parsers in sequence
+ *
+ * @note All the parsers must have the same return types.
+ */
+template <class... Parser>
+[[nodiscard]] constexpr auto one_of(Parser&&... parser) noexcept
+{
+  // TODO: Try to enhance the error message of this
+  return (... | std::forward<Parser>(parser));
 }
 
 } // namespace parsec

@@ -42,7 +42,7 @@ TEST_CASE("Int")
 {
   GIVEN("An parser")
   {
-    constexpr auto parser = parsec::integer();
+    constexpr auto parser = parsec::integer;
 
     THEN("Can parse 42")
     {
@@ -126,6 +126,36 @@ TEST_CASE("Or parser")
     THEN("parse 'tea' get 't' instead of 'u'")
     {
       PARSE_AS("tea", 't', "ea");
+    }
+  }
+}
+
+TEST_CASE("One of parser")
+{
+  GIVEN("A parser that accepts character 'a', 'e', or 'g', 'h'")
+  {
+    constexpr auto parser =
+        one_of(parsec::character('a'), parsec::character('e'),
+               parsec::character('g'), parsec::character('h'));
+
+    THEN("Gets correct output for a")
+    {
+      PARSE_AS("all", 'a', "ll");
+    }
+
+    THEN("Gets correct output for e")
+    {
+      PARSE_AS("egg", 'e', "gg");
+    }
+
+    THEN("Gets correct output for g")
+    {
+      PARSE_AS("google", 'g', "oogle");
+    }
+
+    THEN("Gets correct output for h")
+    {
+      PARSE_AS("hot", 'h', "ot");
     }
   }
 }
