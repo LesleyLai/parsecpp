@@ -5,8 +5,6 @@
 #include <string_view>
 #include <type_traits>
 
-#include <iostream>
-
 namespace parsec {
 
 template <class T> struct ParseOutput {
@@ -46,9 +44,6 @@ struct CharParser {
   return CharParser{c};
 }
 
-/**
- * @brief Creates a parser that parses an integer
- */
 [[nodiscard]] constexpr auto is_digit(char c) noexcept -> bool
 {
   return c >= '0' && c <= '9';
@@ -59,9 +54,10 @@ struct CharParser {
   return c - '0';
 }
 
-[[nodiscard]] constexpr auto integer() noexcept
-{
-  return [](std::string_view s) -> MaybeParseResult<int> {
+struct IntParser {
+  [[nodiscard]] constexpr auto operator()(std::string_view s) const
+      -> MaybeParseResult<int>
+  {
     // TODO: Handle out of range
     if (s.empty()) {
       return std::nullopt;
@@ -102,6 +98,14 @@ struct CharParser {
     s.remove_prefix(i);
     return ParseOutput<int>{.output = result, .remaining = s};
   };
+};
+
+/**
+ * @brief Creates a parser that parses an integer
+ */
+[[nodiscard]] constexpr auto integer() noexcept
+{
+  return IntParser{};
 }
 
 template <class Func, class Parser> struct MappedParser {

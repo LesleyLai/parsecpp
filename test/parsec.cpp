@@ -2,6 +2,16 @@
 
 #include "parsec.hpp"
 
+#define PARSE_AS(text, out, remain)                                            \
+  constexpr auto result_const = parser(text);                                  \
+  STATIC_REQUIRE(result_const);                                                \
+  STATIC_REQUIRE(result_const->output == (out));                               \
+  STATIC_REQUIRE(result_const->remaining == (remain));                         \
+  const auto result = parser(text);                                            \
+  REQUIRE(result);                                                             \
+  CHECK(result->output == (out));                                              \
+  CHECK(result->remaining == (remain));
+
 TEST_CASE("Matches a character")
 {
   THEN("Parsing an empty string gets no result")
@@ -16,15 +26,7 @@ TEST_CASE("Matches a character")
 
     THEN("Generates that character and the tail of the string")
     {
-      constexpr auto result_const = parser("Hello, world!");
-      STATIC_REQUIRE(result_const);
-      STATIC_REQUIRE(result_const->output == 'H');
-      STATIC_REQUIRE(result_const->remaining == "ello, world!");
-
-      const auto result = parser("Hello, world!");
-      REQUIRE(result);
-      CHECK(result->output == 'H');
-      CHECK(result->remaining == "ello, world!");
+      PARSE_AS("Hello, world!", 'H', "ello, world!");
     }
   }
 
@@ -44,22 +46,12 @@ TEST_CASE("Int")
 
     THEN("Can parse 42")
     {
-      STATIC_REQUIRE(parser("42"));
-      STATIC_REQUIRE(parser("42")->output == 42);
-      STATIC_REQUIRE(parser("42")->remaining == "");
-      REQUIRE(parser("42"));
-      REQUIRE(parser("42")->output == 42);
-      REQUIRE(parser("42")->remaining == "");
+      PARSE_AS("42", 42, "");
     }
 
-    THEN("Can parse 1234567890")
+    THEN("Can parse 1234567890AAA")
     {
-      STATIC_REQUIRE(parser("1234567890"));
-      STATIC_REQUIRE(parser("1234567890")->output == 1234567890);
-      STATIC_REQUIRE(parser("1234567890")->remaining == "");
-      REQUIRE(parser("1234567890"));
-      REQUIRE(parser("1234567890")->output == 1234567890);
-      REQUIRE(parser("1234567890")->remaining == "");
+      PARSE_AS("1234567890AAA", 1234567890, "AAA");
     }
 
     THEN("Negative numbers are not parsed")
@@ -70,12 +62,7 @@ TEST_CASE("Int")
 
     THEN("Can parse 0")
     {
-      STATIC_REQUIRE(parser("0"));
-      STATIC_REQUIRE(parser("0")->output == 0);
-      STATIC_REQUIRE(parser("0")->remaining == "");
-      REQUIRE(parser("0"));
-      REQUIRE(parser("0")->output == 0);
-      REQUIRE(parser("0")->remaining == "");
+      PARSE_AS("0", 0, "");
     }
 
     THEN("Octal numbers are not parsed")
@@ -101,12 +88,7 @@ TEST_CASE("Map")
 
     THEN("Gets correct output with good input")
     {
-      STATIC_REQUIRE(parser("tea"));
-      STATIC_REQUIRE(parser("tea")->output == ('t' + 1));
-      STATIC_REQUIRE(parser("tea")->remaining == "ea");
-      REQUIRE(parser("tea"));
-      REQUIRE(parser("tea")->output == ('t' + 1));
-      REQUIRE(parser("tea")->remaining == "ea");
+      PARSE_AS("tea", 't' + 1, "ea");
     }
   }
 }
