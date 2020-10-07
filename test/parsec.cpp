@@ -73,7 +73,7 @@ TEST_CASE("Int")
   }
 }
 
-TEST_CASE("Map")
+TEST_CASE("Map parser")
 {
   GIVEN("A mapped character parser")
   {
@@ -89,6 +89,43 @@ TEST_CASE("Map")
     THEN("Gets correct output with good input")
     {
       PARSE_AS("tea", 't' + 1, "ea");
+    }
+  }
+}
+
+TEST_CASE("Or parser")
+{
+  GIVEN("A parser that accepts either character 't' or 'c'")
+  {
+    constexpr auto parser = parsec::character('t') | parsec::character('c');
+
+    THEN("Gets no output with bad input")
+    {
+      STATIC_REQUIRE(!parser("Hello world"));
+      REQUIRE(!parser("Hello world"));
+    }
+
+    THEN("Gets correct output for c")
+    {
+      PARSE_AS("cat", 'c', "at");
+    }
+
+    THEN("Gets correct output for t")
+    {
+      PARSE_AS("tea", 't', "ea");
+    }
+  }
+
+  GIVEN("A parser that accepts either character 't' or map 't' to 'u'")
+  {
+    constexpr auto parser =
+        parsec::character('t') |
+        parsec::map([](char c) { return static_cast<char>(c + 1); },
+                    parsec::character('t'));
+
+    THEN("parse 'tea' get 't' instead of 'u'")
+    {
+      PARSE_AS("tea", 't', "ea");
     }
   }
 }

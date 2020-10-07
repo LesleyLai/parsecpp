@@ -1,6 +1,7 @@
 #ifndef PARSEC_HPP
 #define PARSEC_HPP
 
+#include <concepts>
 #include <optional>
 #include <string_view>
 #include <type_traits>
@@ -44,6 +45,8 @@ struct CharParser {
   return CharParser{c};
 }
 
+namespace detail {
+
 [[nodiscard]] constexpr auto is_digit(char c) noexcept -> bool
 {
   return c >= '0' && c <= '9';
@@ -53,6 +56,8 @@ struct CharParser {
 {
   return c - '0';
 }
+
+} // namespace detail
 
 struct IntParser {
   [[nodiscard]] constexpr auto operator()(std::string_view s) const
@@ -68,31 +73,31 @@ struct IntParser {
     bool first_zero = false;
     {
       const char c = s[0];
-      if (!is_digit(c)) {
+      if (!detail::is_digit(c)) {
         return std::nullopt;
       } else if (c == '0') {
         first_zero = true;
       }
-      result = to_digit(c);
+      result = detail::to_digit(c);
     }
 
     // Parses the second character
-    if (s.size() == 1 || !is_digit(s[1])) {
+    if (s.size() == 1 || !detail::is_digit(s[1])) {
       s.remove_prefix(1);
       return ParseOutput<int>{.output = result, .remaining = s};
     } else if (first_zero) { // Octal
       return std::nullopt;
     }
-    result = to_digit(s[1]) + result * 10;
+    result = detail::to_digit(s[1]) + result * 10;
 
     // Parse the remaining characters
     std::size_t i = 2;
     for (; i < s.size(); ++i) {
       const char c = s[i];
-      if (!is_digit(c)) {
+      if (!detail::is_digit(c)) {
         break;
       }
-      result = to_digit(c) + result * 10;
+      result = detail::to_digit(c) + result * 10;
     }
 
     s.remove_prefix(i);
@@ -114,10 +119,10 @@ template <class Func, class Parser> struct MappedParser {
 
   using Output = std::invoke_result_t<Func, ParseType<Parser>>;
   using Ret = MaybeParseResult<Output>;
-  static constexpr bool is_noexcept =
+  static constexpr bool nothrow_invocable =
       std::is_nothrow_invocable_v<Func, ParseType<Parser>>;
   [[nodiscard]] constexpr auto operator()(std::string_view s) const
-      noexcept(is_noexcept) -> Ret
+      noexcept(noexcept(parser(s)) && nothrow_invocable) -> Ret
   {
     const auto to_map = parser(s);
     if (!to_map) {
@@ -138,6 +143,32 @@ template <class Func, class Parser>
 {
   return MappedParser<Func, Parser>{.func = std::forward<Func>(func),
                                     .parser = std::forward<Parser>(parser)};
+}
+
+template <class Parser1, class Parser2>
+requires(std::same_as<ParseType<Parser1>, ParseType<Parser2>>) struct OrParser {
+  Parser1 p1;
+  Parser2 p2;
+
+  [[nodiscard]] constexpr auto operator()(std::string_view s) const
+      noexcept(noexcept(p1(s)) && noexcept(p2(s)))
+  {
+    auto res = p1(s);
+    return res ? res : p2(s);
+  }
+};
+
+/**
+ * @brief Creates a parser that will try the first parser p1, if it fails, it
+ * will then try the second parser p2
+ */
+template <class Parser1, class Parser2>
+requires(std::same_as<ParseType<Parser1>, ParseType<Parser2>>)
+    [[nodiscard]] constexpr auto
+    operator|(Parser1&& p1, Parser2&& p2) noexcept
+{
+  return OrParser<Parser1, Parser2>{.p1 = std::forward<Parser1>(p1),
+                                    .p2 = std::forward<Parser2>(p2)};
 }
 
 } // namespace parsec
