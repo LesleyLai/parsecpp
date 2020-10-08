@@ -1,6 +1,6 @@
 #include <catch2/catch.hpp>
 
-#include "parsec.hpp"
+#include "parsec_test.hpp"
 
 #define PARSE_AS(text, out, remain)                                            \
   constexpr auto result_const = parser(text);                                  \
@@ -156,6 +156,61 @@ TEST_CASE("One of parser")
     THEN("Gets correct output for h")
     {
       PARSE_AS("hot", 'h', "ot");
+    }
+  }
+}
+
+TEST_CASE("Succeed parser")
+{
+  GIVEN("A succeed parser")
+  {
+    constexpr auto parser = parsec::succeed(10);
+    THEN("It parses arbituary string into 10 and keeps the remaining parts")
+    {
+      PARSE_AS("dragonborn", 10, "dragonborn");
+    }
+  }
+}
+
+struct Point2 {
+  int x;
+  int y;
+
+  [[nodiscard]] friend constexpr auto operator==(const Point2&,
+                                                 const Point2&) noexcept
+      -> bool = default;
+
+  friend auto operator<<(std::ostream& os, Point2 p) -> std::ostream&
+  {
+    os << "{ " << p.x << ", " << p.y << " }" << '\n';
+    return os;
+  }
+};
+
+constexpr auto make_point(int y)
+{
+  return [y](int x) { return Point2{x, y}; };
+}
+
+TEST_CASE("Pipeline parser")
+{
+  GIVEN("A pipe parser")
+  {
+    using namespace parsec;
+
+    // clang-format off
+    constexpr auto parser =
+         parsec::character('{') -=
+         parsec::integer +=
+         parsec::character(',') -=
+         parsec::integer +=
+         parsec::character('}') -=
+         parsec::succeed(&make_point);
+    // clang-format on
+
+    THEN("It can parse a point")
+    {
+      PARSE_AS("{1234,5678}", (Point2{.x = 1234, .y = 5678}), "");
     }
   }
 }

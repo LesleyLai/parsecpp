@@ -4,24 +4,24 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 add_executable(${TEST_TARGET_NAME}
         main.cpp
-        parsec.cpp)
+        parsec_test.cpp)
 
 target_link_libraries(${TEST_TARGET_NAME} PRIVATE parsecpp compiler_options
-    CONAN_PKG::Catch2)
+        CONAN_PKG::Catch2)
 
 CMAKE_DEPENDENT_OPTION(BP_BUILD_TESTS_COVERAGE
         "Build the project with code coverage support for tests" OFF
         "BUILD_TESTING" OFF)
-if(${BP_BUILD_TESTS_COVERAGE})
+if (${BP_BUILD_TESTS_COVERAGE})
     include("../cmake/CodeCoverage.cmake")
     APPEND_COVERAGE_COMPILER_FLAGS("-g -O0 -fprofile-arcs -ftest-coverage")
     set(COVERAGE_LCOV_EXCLUDES '/usr/*' '*/.conan/*' '*/test/*' 'test/*')
     SETUP_TARGET_FOR_COVERAGE_LCOV(
-        NAME coverage                    # New target name
-        EXECUTABLE ${TEST_TARGET_NAME}
-        DEPENDENCIES ${TEST_TARGET_NAME}  # Dependencies to build first
+            NAME coverage                    # New target name
+            EXECUTABLE ${TEST_TARGET_NAME}
+            DEPENDENCIES ${TEST_TARGET_NAME}  # Dependencies to build first
     )
-endif()
+endif ()
 
 enable_testing()
 

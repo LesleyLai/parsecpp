@@ -15,7 +15,7 @@ template <class T> struct ParseOutput {
   std::string_view remaining;
 };
 
-template <class T> using MaybeParseResult = std::optional<ParseOutput<T>>;
+template <class T> using ParseResult = std::optional<ParseOutput<T>>;
 
 // The type that the Parser tries to parse
 template <class Parser>
@@ -25,7 +25,7 @@ using ParseType =
 struct CharParser {
   char c = 0;
   [[nodiscard]] constexpr auto operator()(std::string_view s) const
-      -> MaybeParseResult<char>
+      -> ParseResult<char>
   {
     if (s.empty() || s.front() != c) {
       return std::nullopt;
@@ -59,63 +59,58 @@ namespace detail {
 
 } // namespace detail
 
-struct IntParser {
-  [[nodiscard]] constexpr auto operator()(std::string_view s) const
-      -> MaybeParseResult<int>
-  {
-    // TODO: Handle out of range
-    if (s.empty()) {
-      return std::nullopt;
-    }
-
-    // Parses the first character
-    int result = 0;
-    bool first_zero = false;
-    {
-      const char c = s[0];
-      if (!detail::is_digit(c)) {
-        return std::nullopt;
-      } else if (c == '0') {
-        first_zero = true;
-      }
-      result = detail::to_digit(c);
-    }
-
-    // Parses the second character
-    if (s.size() == 1 || !detail::is_digit(s[1])) {
-      s.remove_prefix(1);
-      return ParseOutput<int>{.output = result, .remaining = s};
-    } else if (first_zero) { // Octal
-      return std::nullopt;
-    }
-    result = detail::to_digit(s[1]) + result * 10;
-
-    // Parse the remaining characters
-    std::size_t i = 2;
-    for (; i < s.size(); ++i) {
-      const char c = s[i];
-      if (!detail::is_digit(c)) {
-        break;
-      }
-      result = detail::to_digit(c) + result * 10;
-    }
-
-    s.remove_prefix(i);
-    return ParseOutput<int>{.output = result, .remaining = s};
-  };
-};
-
 /**
- * @brief Creates a parser that parses an integer
+ * @brief A parser that parses an integer
  */
-inline constexpr auto integer = IntParser{};
+[[nodiscard]] constexpr auto integer(std::string_view s) -> ParseResult<int>
+{
+  // TODO: Handle out of range
+  if (s.empty()) {
+    return std::nullopt;
+  }
+
+  // Parses the first character
+  int result = 0;
+  bool first_zero = false;
+  {
+    const char c = s[0];
+    if (!detail::is_digit(c)) {
+      return std::nullopt;
+    } else if (c == '0') {
+      first_zero = true;
+    }
+    result = detail::to_digit(c);
+  }
+
+  // Parses the second character
+  if (s.size() == 1 || !detail::is_digit(s[1])) {
+    s.remove_prefix(1);
+    return ParseOutput<int>{.output = result, .remaining = s};
+  } else if (first_zero) { // Octal
+    return std::nullopt;
+  }
+  result = detail::to_digit(s[1]) + result * 10;
+
+  // Parse the remaining characters
+  std::size_t i = 2;
+  for (; i < s.size(); ++i) {
+    const char c = s[i];
+    if (!detail::is_digit(c)) {
+      break;
+    }
+    result = detail::to_digit(c) + result * 10;
+  }
+
+  s.remove_prefix(i);
+  return ParseOutput<int>{.output = result, .remaining = s};
+}
 
 template <class Func, class Parser> struct MappedParser {
   Func func;
   Parser parser;
 
   using Output = std::invoke_result_t<Func, ParseType<Parser>>;
-  using Ret = MaybeParseResult<Output>;
+  using Ret = ParseResult<Output>;
   static constexpr bool nothrow_invocable =
       std::is_nothrow_invocable_v<Func, ParseType<Parser>>;
   [[nodiscard]] constexpr auto operator()(std::string_view s) const
@@ -180,6 +175,64 @@ template <class... Parser>
 {
   // TODO: Try to enhance the error message of this
   return (... | std::forward<Parser>(parser));
+}
+
+/**
+ * @brief A parser that succeeds without chomping any characters.
+ *
+ * Seems to be weird on its own. But useful to combine with other parsers
+ */
+template <typename T> [[nodiscard]] constexpr auto succeed(T&& t) noexcept
+{
+  return [t = std::forward<T>(t)](std::string_view s) -> ParseResult<T> {
+    return ParseOutput<T>{.output = std::move(t), .remaining = s};
+  };
+}
+
+/**
+ * @brief Keeps values in a parser pipeline.
+ *
+ * Parser (a -> b) -> Parser a -> Parser b
+ */
+template <typename Parser1, typename Parser2>
+[[nodiscard]] constexpr auto operator+=(Parser2 p2, Parser1 p1) noexcept
+{
+  // TODO: Need to find someway to make this work without the usage of manual
+  // currying
+  using Output = std::invoke_result_t<ParseType<Parser1>, ParseType<Parser2>>;
+
+  return [p1 = std::forward<Parser1>(p1), p2 = std::forward<Parser2>(p2)](
+             std::string_view s) -> ParseResult<Output> {
+    auto res = p2(s);
+    if (!res) {
+      return std::nullopt;
+    }
+    auto res2 = p1(res->remaining);
+    if (!res2) {
+      return std::nullopt;
+    }
+
+    return ParseOutput<Output>{.output = std::invoke(res2->output, res->output),
+                               .remaining = res2->remaining};
+  };
+}
+
+/**
+ * @brief Ignores values in a parser pipeline
+ */
+template <typename Parser1, typename Parser2>
+[[nodiscard]] constexpr auto operator-=(Parser1 p1, Parser2 p2) noexcept
+{
+  using Output = ParseType<Parser2>;
+
+  return [p1 = std::forward<Parser1>(p1), p2 = std::forward<Parser2>(p2)](
+             std::string_view s) -> ParseResult<Output> {
+    auto res = p1(s);
+    if (!res) {
+      return std::nullopt;
+    }
+    return p2(res->remaining);
+  };
 }
 
 } // namespace parsec
