@@ -1,6 +1,6 @@
 #include <catch2/catch.hpp>
 
-#include "parsec_test.hpp"
+#include "parsec.hpp"
 
 #define PARSE_AS(text, out, remain)                                            \
   constexpr auto result_const = parser(text);                                  \
@@ -187,30 +187,32 @@ struct Point2 {
   }
 };
 
-constexpr auto make_point(int y)
+[[nodiscard]] constexpr auto make_point(int x, int y)
 {
-  return [y](int x) { return Point2{x, y}; };
+  return Point2{.x = x, .y = y};
 }
 
 TEST_CASE("Pipeline parser")
 {
-  GIVEN("A pipe parser")
+  GIVEN("A pipeline parser that parses points")
   {
-    using namespace parsec;
+    constexpr auto parser = parsec::pipe()
+                                .ignore(parsec::character('{'))
+                                .keep(parsec::integer)
+                                .ignore(parsec::character(','))
+                                .keep(parsec::integer)
+                                .ignore(parsec::character('}'))
+                                .map(make_point);
 
-    // clang-format off
-    constexpr auto parser =
-         parsec::character('{') -=
-         parsec::integer +=
-         parsec::character(',') -=
-         parsec::integer +=
-         parsec::character('}') -=
-         parsec::succeed(&make_point);
-    // clang-format on
-
-    THEN("It can parse a point")
+    THEN("It can parse a point {1234,5678}")
     {
       PARSE_AS("{1234,5678}", (Point2{.x = 1234, .y = 5678}), "");
+    }
+
+    THEN("It will not parse string {1234,5678")
+    {
+      STATIC_REQUIRE(!parser("{1234,5678"));
+      REQUIRE(!parser("{1234,5678"));
     }
   }
 }

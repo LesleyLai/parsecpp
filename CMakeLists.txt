@@ -14,7 +14,7 @@ run_conan()
 
 add_library(parsecpp INTERFACE)
 target_sources(parsecpp INTERFACE
-        "include/parsec_test.hpp")
+        "include/parsec.hpp")
 target_include_directories(parsecpp INTERFACE "${CMAKE_SOURCE_DIR}/include")
 
 if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)

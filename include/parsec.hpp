@@ -4,7 +4,9 @@
 #include <concepts>
 #include <optional>
 #include <string_view>
+#include <tuple>
 #include <type_traits>
+#include <utility>
 
 namespace parsec {
 
@@ -189,51 +191,81 @@ template <typename T> [[nodiscard]] constexpr auto succeed(T&& t) noexcept
   };
 }
 
-/**
- * @brief Keeps values in a parser pipeline.
- *
- * Parser (a -> b) -> Parser a -> Parser b
- */
-template <typename Parser1, typename Parser2>
-[[nodiscard]] constexpr auto operator+=(Parser2 p2, Parser1 p1) noexcept
+template <class P> struct Pipe {
+  P p;
+
+  template <class Func>
+  [[nodiscard]] constexpr auto map(Func&& func) const noexcept
+  {
+    return [p = std::forward<P>(p),
+            func = std::forward<Func>(func)](std::string_view s)
+               -> ParseResult<decltype(std::apply(func, (p(s)->output)))> {
+      const auto res = p(s);
+      if (!res) {
+        return std::nullopt;
+      }
+      return ParseOutput<decltype(std::apply(func, res->output))>{
+          .output = std::apply(func, res->output), .remaining = res->remaining};
+    };
+  }
+
+  template <class P2> [[nodiscard]] constexpr auto keep(P2 p2) const noexcept
+  {
+    using Out1 = ParseType<P>;
+    using Out2 = ParseType<P2>;
+    using Out = decltype(
+        std::tuple_cat(std::declval<Out1>(), std::tuple{std::declval<Out2>()}));
+
+    const auto result_parser =
+        [p1 = std::forward<P>(p),
+         p2 = std::forward<P2>(p2)](std::string_view s) -> ParseResult<Out> {
+      auto res1 = p1(s);
+      if (!res1) {
+        return std::nullopt;
+      }
+      auto res2 = p2(res1->remaining);
+      if (!res2) {
+        return std::nullopt;
+      }
+      return ParseOutput<Out>{
+          .output = std::tuple_cat(res1->output, std::tuple{res2->output}),
+          .remaining = res2->remaining};
+    };
+
+    return Pipe<decltype(result_parser)>{result_parser};
+  }
+
+  template <typename P2>
+  [[nodiscard]] constexpr auto ignore(P2 p2) const noexcept
+  {
+    const auto result_parser =
+        [p1 = std::forward<P>(p), p2 = std::forward<P2>(p2)](
+            std::string_view s) -> ParseResult<ParseType<P>> {
+      auto res1 = p1(s);
+      if (!res1) {
+        return std::nullopt;
+      }
+      auto res2 = p2(res1->remaining);
+      if (!res2) {
+        return std::nullopt;
+      }
+      return ParseOutput<decltype(res1->output)>{.output = res1->output,
+                                                 .remaining = res2->remaining};
+    };
+    return Pipe<decltype(result_parser)>{result_parser};
+  }
+};
+
+constexpr auto pipe()
 {
-  // TODO: Need to find someway to make this work without the usage of manual
-  // currying
-  using Output = std::invoke_result_t<ParseType<Parser1>, ParseType<Parser2>>;
-
-  return [p1 = std::forward<Parser1>(p1), p2 = std::forward<Parser2>(p2)](
-             std::string_view s) -> ParseResult<Output> {
-    auto res = p2(s);
-    if (!res) {
-      return std::nullopt;
-    }
-    auto res2 = p1(res->remaining);
-    if (!res2) {
-      return std::nullopt;
-    }
-
-    return ParseOutput<Output>{.output = std::invoke(res2->output, res->output),
-                               .remaining = res2->remaining};
+  constexpr auto empty_parser =
+      [](std::string_view s) -> parsec::ParseResult<std::tuple<>> {
+    return parsec::ParseOutput<std::tuple<>>{.output = std::tuple<>{},
+                                             .remaining = s};
   };
-}
 
-/**
- * @brief Ignores values in a parser pipeline
- */
-template <typename Parser1, typename Parser2>
-[[nodiscard]] constexpr auto operator-=(Parser1 p1, Parser2 p2) noexcept
-{
-  using Output = ParseType<Parser2>;
-
-  return [p1 = std::forward<Parser1>(p1), p2 = std::forward<Parser2>(p2)](
-             std::string_view s) -> ParseResult<Output> {
-    auto res = p1(s);
-    if (!res) {
-      return std::nullopt;
-    }
-    return p2(res->remaining);
-  };
-}
+  return parsec::Pipe<decltype(empty_parser)>{empty_parser};
+};
 
 } // namespace parsec
 
