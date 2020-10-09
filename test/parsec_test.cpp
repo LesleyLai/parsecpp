@@ -38,9 +38,9 @@ TEST_CASE("Matches a character")
   }
 }
 
-TEST_CASE("Int")
+TEST_CASE("Int Parser")
 {
-  GIVEN("An parser")
+  GIVEN("The int parser")
   {
     constexpr auto parser = parsec::integer;
 
@@ -138,6 +138,33 @@ TEST_CASE("One of parser")
         one_of(parsec::character('a'), parsec::character('e'),
                parsec::character('g'), parsec::character('h'));
 
+    THEN("Gets correct output for a")
+    {
+      PARSE_AS("all", 'a', "ll");
+    }
+
+    THEN("Gets correct output for e")
+    {
+      PARSE_AS("egg", 'e', "gg");
+    }
+
+    THEN("Gets correct output for g")
+    {
+      PARSE_AS("google", 'g', "oogle");
+    }
+
+    THEN("Gets correct output for h")
+    {
+      PARSE_AS("hot", 'h', "ot");
+    }
+  }
+}
+
+TEST_CASE("OneOfChar parser")
+{
+  GIVEN("A parser that accepts character 'a', 'e', or 'g', 'h'")
+  {
+    constexpr auto parser = parsec::one_of_char("aegh");
     THEN("Gets correct output for a")
     {
       PARSE_AS("all", 'a', "ll");

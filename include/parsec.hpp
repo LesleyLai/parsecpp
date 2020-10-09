@@ -24,7 +24,7 @@ template <class Parser>
 using ParseType =
     typename std::invoke_result_t<Parser, std::string_view>::value_type::Output;
 
-struct CharParser {
+struct Char {
   char c = 0;
   [[nodiscard]] constexpr auto operator()(std::string_view s) const
       -> ParseResult<char>
@@ -38,13 +38,38 @@ struct CharParser {
 };
 
 /**
- * @brief Creates a parser that parses a single character
- * @param s The input string
+ * @brief Creates a parser that matches a single character
  * @param c The character to match
  */
-[[nodiscard]] constexpr auto character(char c) noexcept -> CharParser
+[[nodiscard]] constexpr auto character(char c) noexcept -> Char
 {
-  return CharParser{c};
+  return Char{c};
+}
+
+struct OneOfChar {
+  std::string_view chars;
+  [[nodiscard]] constexpr auto operator()(std::string_view s) const
+      -> ParseResult<char>
+  {
+    if (s.empty()) {
+      return std::nullopt;
+    }
+    const auto match = std::ranges::find(chars.begin(), chars.end(), s.front());
+    if (match == chars.end()) {
+      return std::nullopt;
+    }
+    s.remove_prefix(1);
+    return ParseOutput<char>{.output = *match, .remaining = s};
+  }
+};
+
+/**
+ * @brief Creates a parser that matches one of the characters in chars
+ * @param A string that contains the characters to match
+ */
+[[nodiscard]] constexpr auto one_of_char(std::string_view chars) noexcept
+{
+  return OneOfChar{.chars = chars};
 }
 
 namespace detail {
