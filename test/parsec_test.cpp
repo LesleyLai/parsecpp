@@ -187,18 +187,6 @@ TEST_CASE("OneOfChar parser")
   }
 }
 
-TEST_CASE("Succeed parser")
-{
-  GIVEN("A succeed parser")
-  {
-    constexpr auto parser = parsec::succeed(10);
-    THEN("It parses arbituary string into 10 and keeps the remaining parts")
-    {
-      PARSE_AS("dragonborn", 10, "dragonborn");
-    }
-  }
-}
-
 struct Point2 {
   int x;
   int y;
@@ -240,6 +228,33 @@ TEST_CASE("Pipeline parser")
     {
       STATIC_REQUIRE(!parser("{1234,5678"));
       REQUIRE(!parser("{1234,5678"));
+    }
+  }
+}
+
+TEST_CASE("ChompWhile parser")
+{
+  GIVEN("A parser that chomps all numbers")
+  {
+    constexpr auto parser =
+        parsec::chomp_while([](const char c) { return c >= '0' && c <= '9'; });
+
+    THEN("It discard the first number parts of string 1234Abcd12")
+    {
+      PARSE_AS("1234Abcd12", parsec::monostate, "Abcd12");
+    }
+  }
+}
+
+TEST_CASE("whitespace parser")
+{
+  GIVEN("The whitespace parser")
+  {
+    constexpr auto parser = parsec::spaces;
+
+    THEN("It discard the whitespace heading of a string")
+    {
+      PARSE_AS(" \t\nad bc", parsec::monostate, "ad bc");
     }
   }
 }

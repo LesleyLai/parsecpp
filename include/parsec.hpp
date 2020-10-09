@@ -1,6 +1,7 @@
 #ifndef PARSEC_HPP
 #define PARSEC_HPP
 
+#include <algorithm>
 #include <concepts>
 #include <optional>
 #include <string_view>
@@ -10,9 +11,14 @@
 
 namespace parsec {
 
+constexpr struct Monostate {
+  [[nodiscard]] friend constexpr auto operator==(Monostate lhs,
+                                                 Monostate rhs) noexcept
+      -> bool = default;
+} monostate;
+
 template <class T> struct ParseOutput {
   using Output = T;
-
   Output output;
   std::string_view remaining;
 };
@@ -82,6 +88,11 @@ namespace detail {
 [[nodiscard]] constexpr auto to_digit(char c) noexcept -> int
 {
   return c - '0';
+}
+
+[[nodiscard]] constexpr auto is_whitespace(char c) noexcept -> bool
+{
+  return c == ' ' || c == '\t' || c == '\n';
 }
 
 } // namespace detail
@@ -204,18 +215,6 @@ template <class... Parser>
   return (... | std::forward<Parser>(parser));
 }
 
-/**
- * @brief A parser that succeeds without chomping any characters.
- *
- * Seems to be weird on its own. But useful to combine with other parsers
- */
-template <typename T> [[nodiscard]] constexpr auto succeed(T&& t) noexcept
-{
-  return [t = std::forward<T>(t)](std::string_view s) -> ParseResult<T> {
-    return ParseOutput<T>{.output = std::move(t), .remaining = s};
-  };
-}
-
 template <class P> struct Pipe {
   P p;
 
@@ -281,7 +280,7 @@ template <class P> struct Pipe {
   }
 };
 
-constexpr auto pipe()
+[[nodiscard]] constexpr auto pipe()
 {
   constexpr auto empty_parser =
       [](std::string_view s) -> parsec::ParseResult<std::tuple<>> {
@@ -291,6 +290,32 @@ constexpr auto pipe()
 
   return parsec::Pipe<decltype(empty_parser)>{empty_parser};
 };
+
+/**
+ * @brief Creates a parser that chomp zero or more characters if they pass the
+ * test
+ */
+template <std::predicate<char> Pred>
+[[nodiscard]] constexpr auto chomp_while(Pred&& pred)
+{
+  return [pred = std::forward<Pred>(pred)](
+             const std::string_view s) -> ParseResult<Monostate> {
+    auto remaining = s;
+    for (const char c : s) {
+      if (!pred(c)) {
+        break;
+      }
+      remaining.remove_prefix(1);
+    }
+
+    return ParseOutput<Monostate>{.output = monostate, .remaining = remaining};
+  };
+}
+
+/**
+ * @brief Parse zero or more ' ', '\n', and '\r' characters.
+ */
+constexpr auto spaces = chomp_while(detail::is_whitespace);
 
 } // namespace parsec
 
