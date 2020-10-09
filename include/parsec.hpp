@@ -175,19 +175,6 @@ template <class Func, class Parser>
                                     .parser = std::forward<Parser>(parser)};
 }
 
-template <class Parser1, class Parser2>
-requires(std::same_as<ParseType<Parser1>, ParseType<Parser2>>) struct OrParser {
-  Parser1 p1;
-  Parser2 p2;
-
-  [[nodiscard]] constexpr auto operator()(std::string_view s) const
-      noexcept(noexcept(p1(s)) && noexcept(p2(s)))
-  {
-    auto res = p1(s);
-    return res ? res : p2(s);
-  }
-};
-
 /**
  * @brief Creates a parser that tries the first parser, and if it fails, does
  * the second
@@ -197,10 +184,13 @@ requires(std::same_as<ParseType<Parser1>, ParseType<Parser2>>) struct OrParser {
 template <class Parser1, class Parser2>
 requires(std::same_as<ParseType<Parser1>, ParseType<Parser2>>)
     [[nodiscard]] constexpr auto
-    operator|(Parser1&& p1, Parser2&& p2) noexcept -> OrParser<Parser1, Parser2>
+    operator|(Parser1&& p1, Parser2&& p2) noexcept
 {
-  return OrParser<Parser1, Parser2>{.p1 = std::forward<Parser1>(p1),
-                                    .p2 = std::forward<Parser2>(p2)};
+  return [p1 = std::forward<Parser1>(p1), p2 = std::forward<Parser2>(p2)](
+             std::string_view s) noexcept(noexcept(p1(s))&& noexcept(p2(s))) {
+    auto res = p1(s);
+    return res ? res : p2(s);
+  };
 }
 
 /**
