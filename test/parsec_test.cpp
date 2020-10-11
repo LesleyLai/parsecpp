@@ -14,6 +14,11 @@
 
 TEST_CASE("Matches a character")
 {
+  SECTION("parsec::character creates a parser")
+  {
+    STATIC_REQUIRE(parsec::Parser<decltype(parsec::character('a'))>);
+  }
+
   THEN("Parsing an empty string gets no result")
   {
     STATIC_REQUIRE(parsec::character('t')("") == std::nullopt);
@@ -43,6 +48,11 @@ TEST_CASE("Int Parser")
   GIVEN("The int parser")
   {
     constexpr auto parser = parsec::integer;
+
+    THEN("It is a parser")
+    {
+      STATIC_REQUIRE(parsec::integer);
+    }
 
     THEN("Can parse 42")
     {
@@ -80,6 +90,11 @@ TEST_CASE("Map parser")
     constexpr auto parser =
         parsec::map([](char c) { return c + 1; }, parsec::character('t'));
 
+    THEN("It is also a parser")
+    {
+      STATIC_REQUIRE(parsec::Parser<decltype(parser)>);
+    }
+
     THEN("Gets no output with bad input")
     {
       STATIC_REQUIRE(!parser("Hello world"));
@@ -98,6 +113,11 @@ TEST_CASE("Or parser")
   GIVEN("A parser that accepts either character 't' or 'c'")
   {
     constexpr auto parser = parsec::character('t') | parsec::character('c');
+
+    THEN("It is also a parser")
+    {
+      STATIC_REQUIRE(parsec::Parser<decltype(parser)>);
+    }
 
     THEN("Gets no output with bad input")
     {
@@ -138,6 +158,11 @@ TEST_CASE("One of parser")
         one_of(parsec::character('a'), parsec::character('e'),
                parsec::character('g'), parsec::character('h'));
 
+    THEN("It is also a parser")
+    {
+      STATIC_REQUIRE(parsec::Parser<decltype(parser)>);
+    }
+
     THEN("Gets correct output for a")
     {
       PARSE_AS("all", 'a', "ll");
@@ -165,6 +190,12 @@ TEST_CASE("OneOfChar parser")
   GIVEN("A parser that accepts character 'a', 'e', or 'g', 'h'")
   {
     constexpr auto parser = parsec::one_of_char("aegh");
+
+    THEN("It is also a parser")
+    {
+      STATIC_REQUIRE(parsec::Parser<decltype(parser)>);
+    }
+
     THEN("Gets correct output for a")
     {
       PARSE_AS("all", 'a', "ll");
@@ -219,6 +250,11 @@ TEST_CASE("Pipeline parser")
                                 .ignore(parsec::character('}'))
                                 .map(make_point);
 
+    THEN("It is also a parser")
+    {
+      STATIC_REQUIRE(parsec::Parser<decltype(parser)>);
+    }
+
     THEN("It can parse a point {1234,5678}")
     {
       PARSE_AS("{1234,5678}", (Point2{.x = 1234, .y = 5678}), "");
@@ -239,6 +275,11 @@ TEST_CASE("ChompWhile parser")
     constexpr auto parser =
         parsec::chomp_while([](const char c) { return c >= '0' && c <= '9'; });
 
+    THEN("It is also a parser")
+    {
+      STATIC_REQUIRE(parsec::Parser<decltype(parser)>);
+    }
+
     THEN("It discard the first number parts of string 1234Abcd12")
     {
       PARSE_AS("1234Abcd12", parsec::monostate, "Abcd12");
@@ -251,6 +292,11 @@ TEST_CASE("whitespace parser")
   GIVEN("The whitespace parser")
   {
     constexpr auto parser = parsec::spaces;
+
+    THEN("It is also a parser")
+    {
+      STATIC_REQUIRE(parsec::Parser<decltype(parser)>);
+    }
 
     THEN("It discard the whitespace heading of a string")
     {

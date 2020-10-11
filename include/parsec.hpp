@@ -26,9 +26,12 @@ template <class T> struct ParseOutput {
 template <class T> using ParseResult = std::optional<ParseOutput<T>>;
 
 // The type that the Parser tries to parse
-template <class Parser>
+template <class Func>
 using ParseType =
-    typename std::invoke_result_t<Parser, std::string_view>::value_type::Output;
+    typename std::invoke_result_t<Func, std::string_view>::value_type::Output;
+
+template <class Func>
+concept Parser = std::regular_invocable<Func, std::string_view>;
 
 struct Char {
   char c = 0;
@@ -143,14 +146,14 @@ namespace detail {
   return ParseOutput<int>{.output = result, .remaining = s};
 }
 
-template <class Func, class Parser> struct MappedParser {
+template <class Func, Parser P> struct MappedParser {
   Func func;
-  Parser parser;
+  P parser;
 
-  using Output = std::invoke_result_t<Func, ParseType<Parser>>;
+  using Output = std::invoke_result_t<Func, ParseType<P>>;
   using Ret = ParseResult<Output>;
   static constexpr bool nothrow_invocable =
-      std::is_nothrow_invocable_v<Func, ParseType<Parser>>;
+      std::is_nothrow_invocable_v<Func, ParseType<P>>;
   [[nodiscard]] constexpr auto operator()(std::string_view s) const
       noexcept(noexcept(parser(s)) && nothrow_invocable) -> Ret
   {
@@ -167,12 +170,12 @@ template <class Func, class Parser> struct MappedParser {
  * @param func The function that maps the another parser's output
  * @param parser The parser to be transformed
  */
-template <class Func, class Parser>
-[[nodiscard]] constexpr auto map(Func&& func, Parser&& parser) noexcept
-    -> MappedParser<Func, Parser>
+template <class Func, Parser P>
+[[nodiscard]] constexpr auto map(Func&& func, P&& parser) noexcept
+    -> MappedParser<Func, P>
 {
-  return MappedParser<Func, Parser>{.func = std::forward<Func>(func),
-                                    .parser = std::forward<Parser>(parser)};
+  return MappedParser<Func, P>{.func = std::forward<Func>(func),
+                               .parser = std::forward<P>(parser)};
 }
 
 /**
@@ -181,12 +184,12 @@ template <class Func, class Parser>
  *
  * @note p1 and p2 must have the same return types.
  */
-template <class Parser1, class Parser2>
-requires(std::same_as<ParseType<Parser1>, ParseType<Parser2>>)
+template <Parser P1, Parser P2>
+requires(std::same_as<ParseType<P1>, ParseType<P2>>)
     [[nodiscard]] constexpr auto
-    operator|(Parser1&& p1, Parser2&& p2) noexcept
+    operator|(P1&& p1, P2&& p2) noexcept
 {
-  return [p1 = std::forward<Parser1>(p1), p2 = std::forward<Parser2>(p2)](
+  return [p1 = std::forward<P1>(p1), p2 = std::forward<P2>(p2)](
              std::string_view s) noexcept(noexcept(p1(s))&& noexcept(p2(s))) {
     auto res = p1(s);
     return res ? res : p2(s);
@@ -198,14 +201,14 @@ requires(std::same_as<ParseType<Parser1>, ParseType<Parser2>>)
  *
  * @note All the parsers must have the same return types.
  */
-template <class... Parser>
-[[nodiscard]] constexpr auto one_of(Parser&&... parser) noexcept
+template <Parser... P>
+[[nodiscard]] constexpr auto one_of(P&&... parser) noexcept
 {
   // TODO: Try to enhance the error message of this
-  return (... | std::forward<Parser>(parser));
+  return (... | std::forward<P>(parser));
 }
 
-template <class P> struct Pipe {
+template <Parser P> struct Pipe {
   P p;
 
   template <class Func>
@@ -223,7 +226,7 @@ template <class P> struct Pipe {
     };
   }
 
-  template <class P2> [[nodiscard]] constexpr auto keep(P2 p2) const noexcept
+  template <Parser P2> [[nodiscard]] constexpr auto keep(P2 p2) const noexcept
   {
     using Out1 = ParseType<P>;
     using Out2 = ParseType<P2>;
@@ -249,8 +252,7 @@ template <class P> struct Pipe {
     return Pipe<decltype(result_parser)>{result_parser};
   }
 
-  template <typename P2>
-  [[nodiscard]] constexpr auto ignore(P2 p2) const noexcept
+  template <Parser P2> [[nodiscard]] constexpr auto ignore(P2 p2) const noexcept
   {
     const auto result_parser =
         [p1 = std::forward<P>(p), p2 = std::forward<P2>(p2)](
