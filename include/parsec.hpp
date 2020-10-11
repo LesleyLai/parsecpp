@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <concepts>
 #include <optional>
+#include <ranges>
 #include <string_view>
 #include <tuple>
 #include <type_traits>
@@ -25,13 +26,24 @@ template <class T> struct ParseOutput {
 
 template <class T> using ParseResult = std::optional<ParseOutput<T>>;
 
+// clang-format off
+template <class T> concept IsParseOutput = requires(T parse_output)
+{
+  { ParseOutput(parse_output) } ->std::same_as<T>;
+};
+// clang-format on
+
+template <class T>
+concept IsParseResult = IsParseOutput<typename T::value_type>;
+
 // The type that the Parser tries to parse
 template <class Func>
 using ParseType =
     typename std::invoke_result_t<Func, std::string_view>::value_type::Output;
 
 template <class Func>
-concept Parser = std::regular_invocable<Func, std::string_view>;
+concept Parser = std::regular_invocable<Func, std::string_view>&&
+    IsParseResult<std::invoke_result_t<Func, std::string_view>>;
 
 struct Char {
   char c = 0;

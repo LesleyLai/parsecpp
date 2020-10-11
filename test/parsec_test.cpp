@@ -51,7 +51,7 @@ TEST_CASE("Int Parser")
 
     THEN("It is a parser")
     {
-      STATIC_REQUIRE(parsec::integer);
+      STATIC_REQUIRE(parsec::Parser<decltype(parsec::integer)>);
     }
 
     THEN("Can parse 42")
