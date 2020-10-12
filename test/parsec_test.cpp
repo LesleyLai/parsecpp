@@ -5,11 +5,11 @@
 #define PARSE_AS(text, out, remain)                                            \
   constexpr auto result_const = parser(text);                                  \
   STATIC_REQUIRE(result_const);                                                \
-  STATIC_REQUIRE(result_const->output == (out));                               \
+  STATIC_REQUIRE(result_const->value == (out));                                \
   STATIC_REQUIRE(result_const->remaining == (remain));                         \
   const auto result = parser(text);                                            \
   REQUIRE(result);                                                             \
-  CHECK(result->output == (out));                                              \
+  CHECK(result->value == (out));                                               \
   CHECK(result->remaining == (remain));
 
 TEST_CASE("Matches a character")

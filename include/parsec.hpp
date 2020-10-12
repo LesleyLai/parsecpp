@@ -19,8 +19,8 @@ constexpr struct Monostate {
 } monostate;
 
 template <class T> struct ParseOutput {
-  using Output = T;
-  Output output;
+  using Value = T;
+  Value value;
   std::string_view remaining;
 };
 
@@ -39,7 +39,7 @@ concept IsParseResult = IsParseOutput<typename T::value_type>;
 // The type that the Parser tries to parse
 template <class Func>
 using ParseType =
-    typename std::invoke_result_t<Func, std::string_view>::value_type::Output;
+    typename std::invoke_result_t<Func, std::string_view>::value_type::Value;
 
 template <class Func>
 concept Parser = std::regular_invocable<Func, std::string_view>&&
@@ -54,7 +54,7 @@ struct Char {
       return std::nullopt;
     }
     s.remove_prefix(1);
-    return ParseOutput<char>{.output = c, .remaining = s};
+    return ParseOutput<char>{.value = c, .remaining = s};
   }
 };
 
@@ -80,7 +80,7 @@ struct OneOfChar {
       return std::nullopt;
     }
     s.remove_prefix(1);
-    return ParseOutput<char>{.output = *match, .remaining = s};
+    return ParseOutput<char>{.value = *match, .remaining = s};
   }
 };
 
@@ -138,7 +138,7 @@ namespace detail {
   // Parses the second character
   if (s.size() == 1 || !detail::is_digit(s[1])) {
     s.remove_prefix(1);
-    return ParseOutput<int>{.output = result, .remaining = s};
+    return ParseOutput<int>{.value = result, .remaining = s};
   } else if (first_zero) { // Octal
     return std::nullopt;
   }
@@ -155,7 +155,7 @@ namespace detail {
   }
 
   s.remove_prefix(i);
-  return ParseOutput<int>{.output = result, .remaining = s};
+  return ParseOutput<int>{.value = result, .remaining = s};
 }
 
 template <class Func, Parser P> struct MappedParser {
@@ -173,7 +173,7 @@ template <class Func, Parser P> struct MappedParser {
     if (!to_map) {
       return std::nullopt;
     }
-    return Ret({func(to_map->output), to_map->remaining});
+    return Ret({func(to_map->value), to_map->remaining});
   }
 };
 
@@ -228,13 +228,13 @@ template <Parser P> struct Pipe {
   {
     return [p = std::forward<P>(p),
             func = std::forward<Func>(func)](std::string_view s)
-               -> ParseResult<decltype(std::apply(func, (p(s)->output)))> {
+               -> ParseResult<decltype(std::apply(func, (p(s)->value)))> {
       const auto res = p(s);
       if (!res) {
         return std::nullopt;
       }
-      return ParseOutput<decltype(std::apply(func, res->output))>{
-          .output = std::apply(func, res->output), .remaining = res->remaining};
+      return ParseOutput<decltype(std::apply(func, res->value))>{
+          .value = std::apply(func, res->value), .remaining = res->remaining};
     };
   }
 
@@ -257,7 +257,7 @@ template <Parser P> struct Pipe {
         return std::nullopt;
       }
       return ParseOutput<Out>{
-          .output = std::tuple_cat(res1->output, std::tuple{res2->output}),
+          .value = std::tuple_cat(res1->value, std::tuple{res2->value}),
           .remaining = res2->remaining};
     };
 
@@ -277,8 +277,8 @@ template <Parser P> struct Pipe {
       if (!res2) {
         return std::nullopt;
       }
-      return ParseOutput<decltype(res1->output)>{.output = res1->output,
-                                                 .remaining = res2->remaining};
+      return ParseOutput<decltype(res1->value)>{.value = res1->value,
+                                                .remaining = res2->remaining};
     };
     return Pipe<decltype(result_parser)>{result_parser};
   }
@@ -288,7 +288,7 @@ template <Parser P> struct Pipe {
 {
   constexpr auto empty_parser =
       [](std::string_view s) -> parsec::ParseResult<std::tuple<>> {
-    return parsec::ParseOutput<std::tuple<>>{.output = std::tuple<>{},
+    return parsec::ParseOutput<std::tuple<>>{.value = std::tuple<>{},
                                              .remaining = s};
   };
 
@@ -312,7 +312,7 @@ template <std::predicate<char> Pred>
       remaining.remove_prefix(1);
     }
 
-    return ParseOutput<Monostate>{.output = monostate, .remaining = remaining};
+    return ParseOutput<Monostate>{.value = monostate, .remaining = remaining};
   };
 }
 

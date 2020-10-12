@@ -39,5 +39,5 @@ int main()
                                     });
   constexpr auto result = point_parser("(1,  \n -12, 3) ");
   static_assert(result);
-  static_assert(result->output == Point{1, -12, 3});
+  static_assert(result->value == Point{1, -12, 3});
 }
