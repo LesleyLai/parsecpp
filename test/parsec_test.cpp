@@ -47,11 +47,11 @@ TEST_CASE("Int Parser")
 {
   GIVEN("The int parser")
   {
-    constexpr auto parser = parsec::integer;
+    constexpr auto parser = parsec::integer<int>;
 
     THEN("It is a parser")
     {
-      STATIC_REQUIRE(parsec::Parser<decltype(parsec::integer)>);
+      STATIC_REQUIRE(parsec::Parser<decltype(parser)>);
     }
 
     THEN("Can parse 42")
@@ -244,9 +244,9 @@ TEST_CASE("Pipeline parser")
   {
     constexpr auto parser = parsec::pipe()
                                 .ignore(parsec::character('{'))
-                                .keep(parsec::integer)
+                                .keep(parsec::integer<int>)
                                 .ignore(parsec::character(','))
-                                .keep(parsec::integer)
+                                .keep(parsec::integer<int>)
                                 .ignore(parsec::character('}'))
                                 .map(make_point);
 

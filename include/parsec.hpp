@@ -36,14 +36,14 @@ template <class T> concept IsParseOutput = requires(T parse_output)
 template <class T>
 concept IsParseResult = IsParseOutput<typename T::value_type>;
 
-// The type that the Parser tries to parse
-template <class Func>
-using ParseType =
-    typename std::invoke_result_t<Func, std::string_view>::value_type::Value;
-
 template <class Func>
 concept Parser = std::regular_invocable<Func, std::string_view>&&
     IsParseResult<std::invoke_result_t<Func, std::string_view>>;
+
+// The type that the Parser tries to parse
+template <Parser P>
+using ParseType =
+    typename std::invoke_result_t<P, std::string_view>::value_type::Value;
 
 struct Char {
   char c = 0;
@@ -115,7 +115,8 @@ namespace detail {
 /**
  * @brief A parser that parses an integer
  */
-[[nodiscard]] constexpr auto integer(std::string_view s) -> ParseResult<int>
+template <std::integral T>
+[[nodiscard]] constexpr auto integer(std::string_view s) -> ParseResult<T>
 {
   // TODO: Handle out of range
   if (s.empty()) {

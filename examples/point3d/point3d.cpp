@@ -12,10 +12,10 @@ struct Point {
 };
 
 static constexpr auto integer =
-    parsec::integer | parsec::pipe()
-                          .ignore(parsec::character('-'))
-                          .keep(parsec::integer)
-                          .map([](int x) { return -x; });
+    parsec::integer<int> | parsec::pipe()
+                               .ignore(parsec::character('-'))
+                               .keep(parsec::integer<int>)
+                               .map([](int x) { return -x; });
 
 int main()
 {
