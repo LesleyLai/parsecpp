@@ -4,7 +4,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 add_executable(${TEST_TARGET_NAME}
         main.cpp
-        parsec_test.cpp)
+        parsec_test.cpp tuple_test.cpp)
 
 target_link_libraries(${TEST_TARGET_NAME} PRIVATE parsecpp compiler_options
         CONAN_PKG::Catch2)
