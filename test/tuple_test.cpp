@@ -2,7 +2,7 @@
 
 #include "tuple.hpp"
 
-TEST_CASE("A default constructed tuple")
+TEST_CASE("Tuple Default Constructor")
 {
   constexpr parsec::Tuple<int, int, int> t_const;
   STATIC_REQUIRE(t_const.get<0>() == 0);
@@ -27,7 +27,7 @@ constexpr auto to_s(int x, int y, double z)
   return S{.x = x, .y = y, .z = z};
 };
 
-TEST_CASE("A value constructed tuple")
+TEST_CASE("Tuple Functions")
 {
   GIVEN("A tuple (1, 2, 3.5)")
   {
@@ -52,6 +52,21 @@ TEST_CASE("A value constructed tuple")
 
       const S result = parsec::apply(to_s, t);
       REQUIRE(result == expected);
+    }
+
+    THEN("We can push back another element to the tuple")
+    {
+      constexpr auto result_const = parsec::tuple_push_back(t_const, 'c');
+      STATIC_REQUIRE(parsec::get<0>(result_const) == 1);
+      STATIC_REQUIRE(parsec::get<1>(result_const) == 2);
+      STATIC_REQUIRE(parsec::get<2>(result_const) == 3.5);
+      STATIC_REQUIRE(parsec::get<3>(result_const) == 'c');
+
+      const auto result = parsec::tuple_push_back(t, 'c');
+      CHECK(parsec::get<0>(result) == 1);
+      CHECK(parsec::get<1>(result) == 2);
+      CHECK(parsec::get<2>(result) == 3.5);
+      CHECK(parsec::get<3>(result) == 'c');
     }
   }
 }

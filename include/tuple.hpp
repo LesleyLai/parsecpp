@@ -87,6 +87,28 @@ constexpr auto PARSEC_FORCE_INLINE apply(F&& f, Tuple&& t) -> decltype(auto)
   (std::make_index_sequence<tuple_size_v<std::remove_cvref_t<Tuple>>>{});
 }
 
+namespace detail {
+template <class... Ts, class T>
+constexpr auto tp_impl(const Tuple<Ts...>& tuple, T&& v)
+{
+  return [&tuple,
+          v = std::forward<T>(v) ]<std::size_t... I>(std::index_sequence<I...>)
+  {
+    return Tuple{std::remove_reference_t<decltype(parsec::get<I>(tuple))>(
+                     parsec::get<I>(tuple))...,
+                 T{v}};
+  }
+  (std::make_index_sequence<sizeof...(Ts)>{});
+}
+} // namespace detail
+
+template <class Tuple, class T>
+constexpr auto PARSEC_FORCE_INLINE tuple_push_back(Tuple&& tuple, T&& value)
+    -> auto
+{
+  return detail::tp_impl(std::forward<Tuple>(tuple), std::forward<T>(value));
+}
+
 } // namespace parsec
 
 #endif // PARSECPP_TUPLE_HPP
