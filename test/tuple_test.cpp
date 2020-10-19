@@ -25,7 +25,7 @@ struct S {
 constexpr auto to_s(int x, int y, double z)
 {
   return S{.x = x, .y = y, .z = z};
-};
+}
 
 TEST_CASE("Tuple Functions")
 {

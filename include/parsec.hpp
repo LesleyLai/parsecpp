@@ -6,9 +6,10 @@
 #include <optional>
 #include <ranges>
 #include <string_view>
-#include <tuple>
 #include <type_traits>
 #include <utility>
+
+#include "tuple.hpp"
 
 namespace parsec {
 
@@ -229,13 +230,14 @@ template <Parser P> struct Pipe {
   {
     return [p = std::forward<P>(p),
             func = std::forward<Func>(func)](std::string_view s)
-               -> ParseResult<decltype(std::apply(func, (p(s)->value)))> {
+               -> ParseResult<decltype(parsec::apply(func, (p(s)->value)))> {
       const auto res = p(s);
       if (!res) {
         return std::nullopt;
       }
-      return ParseOutput<decltype(std::apply(func, res->value))>{
-          .value = std::apply(func, res->value), .remaining = res->remaining};
+      return ParseOutput<decltype(parsec::apply(func, res->value))>{
+          .value = parsec::apply(func, res->value),
+          .remaining = res->remaining};
     };
   }
 
@@ -243,8 +245,8 @@ template <Parser P> struct Pipe {
   {
     using Out1 = ParseType<P>;
     using Out2 = ParseType<P2>;
-    using Out = decltype(
-        std::tuple_cat(std::declval<Out1>(), std::tuple{std::declval<Out2>()}));
+    using Out =
+        decltype(tuple_push_back(std::declval<Out1>(), std::declval<Out2>()));
 
     const auto result_parser =
         [p1 = std::forward<P>(p),
@@ -257,9 +259,9 @@ template <Parser P> struct Pipe {
       if (!res2) {
         return std::nullopt;
       }
-      return ParseOutput<Out>{
-          .value = std::tuple_cat(res1->value, std::tuple{res2->value}),
-          .remaining = res2->remaining};
+      return ParseOutput<Out>{.value = tuple_push_back(std::move(res1->value),
+                                                       std::move(res2->value)),
+                              .remaining = res2->remaining};
     };
 
     return Pipe<decltype(result_parser)>{result_parser};
@@ -288,13 +290,12 @@ template <Parser P> struct Pipe {
 [[nodiscard]] constexpr auto pipe()
 {
   constexpr auto empty_parser =
-      [](std::string_view s) -> parsec::ParseResult<std::tuple<>> {
-    return parsec::ParseOutput<std::tuple<>>{.value = std::tuple<>{},
-                                             .remaining = s};
+      [](std::string_view s) -> parsec::ParseResult<Tuple<>> {
+    return parsec::ParseOutput<Tuple<>>{.value = Tuple<>{}, .remaining = s};
   };
 
   return parsec::Pipe<decltype(empty_parser)>{empty_parser};
-};
+}
 
 /**
  * @brief Creates a parser that chomp zero or more characters if they pass the

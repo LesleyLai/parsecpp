@@ -49,8 +49,9 @@ struct TupleStorage<Head, Tail...> : public TupleStorage<Tail...> {
 template <class... T> struct Tuple : public detail::TupleStorage<T...> {
   constexpr Tuple() noexcept = default;
 
-  explicit constexpr PARSEC_FORCE_INLINE Tuple(T&&... values) noexcept(
-      noexcept(detail::TupleStorage<T...>(std::forward<T>(values)...)))
+  explicit constexpr PARSEC_FORCE_INLINE
+  Tuple(T&&... values) noexcept(noexcept(detail::TupleStorage<T...>(
+      std::forward<T>(values)...))) requires(sizeof...(T) != 0)
       : detail::TupleStorage<T...>(std::forward<T>(values)...)
   {
   }
@@ -82,7 +83,7 @@ constexpr auto PARSEC_FORCE_INLINE apply(F&& f, Tuple&& t) -> decltype(auto)
       [ f = std::forward<F>(f), t = std::forward<Tuple>(t) ]<std::size_t... I>(
           std::index_sequence<I...>)
   {
-    return std::invoke(f, parsec::get<I>(std::forward<Tuple>(t))...);
+    return std::invoke(f, parsec::get<I>(t)...);
   }
   (std::make_index_sequence<tuple_size_v<std::remove_cvref_t<Tuple>>>{});
 }
